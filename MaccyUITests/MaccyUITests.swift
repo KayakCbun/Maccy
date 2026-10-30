@@ -276,6 +276,18 @@ class MaccyUITests: XCTestCase {
     assertNotExists(items[copy2])
   }
 
+  func testRenameFromContextMenu() {
+    popUpWithMouse()
+    items[copy1].firstMatch.rightClick()
+    app.menuItems["Rename…"].click()
+    let field = app.textFields["edit-field"]
+    assertExists(field)
+    typeKeys("work notes")
+    XCTAssertEqual(field.value as? String, "work notes")
+    app.typeKey(.return, modifierFlags: [])
+    assertExists(app.staticTexts["work notes"])
+  }
+
   func testEscapeCancelsRename() {
     popUpWithMouse()
     hover(items[copy1].firstMatch)

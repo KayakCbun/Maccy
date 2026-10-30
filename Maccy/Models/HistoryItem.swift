@@ -88,7 +88,9 @@ class HistoryItem {
 
   func generateTitle() -> String {
     guard image == nil else {
-      Task {
+      // Vision blocks the thread it runs on, and can stall (as on CI runners). On a GCD queue
+      // that only ties up a thread of its own, not one of the few that Swift tasks share.
+      DispatchQueue.global(qos: .utility).async {
         self.performTextRecognition()
       }
       return ""
