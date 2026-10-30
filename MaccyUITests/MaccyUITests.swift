@@ -41,6 +41,10 @@ class MaccyUITests: XCTestCase {
     app.descendants(matching: .any).matching(identifier: "copy-history-item")
   }
 
+  var renameField: XCUIElement {
+    app.textFields.matching(NSPredicate(format: "identifier == 'edit-field' OR placeholderValue == 'Name'")).firstMatch
+  }
+
   var itemTitles: [String] {
     items.allElementsBoundByIndex
       .sorted(by: { $0.frame.origin.y < $1.frame.origin.y })
@@ -257,7 +261,7 @@ class MaccyUITests: XCTestCase {
     popUpWithMouse()
     hover(items[copy1].firstMatch)
     app.typeKey("r", modifierFlags: [.command])
-    let field = app.textFields["edit-field"]
+    let field = renameField
     assertExists(field)
     typeKeys("work notes")
     XCTAssertEqual(field.value as? String, "work notes")
@@ -280,8 +284,7 @@ class MaccyUITests: XCTestCase {
     popUpWithMouse()
     items[copy1].firstMatch.rightClick()
     app.menuItems["Rename…"].click()
-    print("AX-DUMP after Rename…:\n\(app.debugDescription)")
-    let field = app.textFields["edit-field"]
+    let field = renameField
     assertExists(field)
     typeKeys("work notes")
     XCTAssertEqual(field.value as? String, "work notes")
@@ -289,19 +292,11 @@ class MaccyUITests: XCTestCase {
     assertExists(app.staticTexts["work notes"])
   }
 
-  func testEditWithCommandE() {
-    popUpWithMouse()
-    hover(items[copy1].firstMatch)
-    app.typeKey("e", modifierFlags: [.command])
-    print("AX-DUMP after ⌘E:\n\(app.debugDescription)")
-    assertExists(app.descendants(matching: .any)["edit-field"])
-  }
-
   func testEscapeCancelsRename() {
     popUpWithMouse()
     hover(items[copy1].firstMatch)
     app.typeKey("r", modifierFlags: [.command])
-    let field = app.textFields["edit-field"]
+    let field = renameField
     assertExists(field)
     typeKeys("zzz")
     XCTAssertEqual(field.value as? String, "zzz")

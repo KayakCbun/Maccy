@@ -73,8 +73,6 @@ struct HistoryListView: View {
           } else {
             modifierFlags.flags = []
             appState.isKeyboardNavigating = true
-            // Clicking away from a rename keeps the new name, as in Finder.
-            appState.history.items.filter(\.isRenaming).forEach { appState.history.saveRenaming($0) }
           }
         }
         // Hand the keyboard to the field an item is edited or renamed in, and take it back after.

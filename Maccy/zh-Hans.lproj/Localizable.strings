@@ -38,3 +38,7 @@
 "rename" = "重命名…";
 "rename_placeholder" = "名称";
 "archived" = "已归档";
+"rename_title" = "重命名";
+"rename_save" = "保存";
+"rename_cancel" = "取消";
+"rename_message" = "搜索时名字和原内容都能搜到。命名后会自动归档。名字留空则恢复显示原内容。";

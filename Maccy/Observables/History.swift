@@ -453,7 +453,8 @@ class History { // swiftlint:disable:this type_body_length
   /// An empty name brings back the title made from the content.
   @MainActor
   func saveRenaming(_ item: HistoryItemDecorator?) {
-    guard let item, item.isRenaming else { return }
+    // The alert may already have reset isRenaming when its button runs this.
+    guard let item else { return }
     item.isRenaming = false
 
     let name = item.editingText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -470,7 +471,7 @@ class History { // swiftlint:disable:this type_body_length
 
   @MainActor
   func cancelRenaming(_ item: HistoryItemDecorator?) {
-    guard let item, item.isRenaming else { return }
+    guard let item else { return }
     item.isRenaming = false
     item.editingText = ""
   }

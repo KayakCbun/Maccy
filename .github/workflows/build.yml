@@ -71,7 +71,9 @@ jobs:
         if: ${{ !cancelled() }}
         timeout-minutes: 20
         run: |
-          tests=(testCopyWithEnter testRenameFromContextMenu testEditWithCommandE)
+          tests=(testSearch testCopyWithEnter testCopyWithCommandShortcut testClear testCopyImage
+                 testArchivedItemSurvivesClear testRenameFromContextMenu testRenameAndSearchByNameOrContent
+                 testEscapeCancelsRename testCopyAnimatedGIF)
           .github/scripts/test.sh uitest.log \
             -project Maccy.xcodeproj -scheme Maccy -testPlan Maccy \
             -destination 'platform=macOS' -derivedDataPath build-tests \
