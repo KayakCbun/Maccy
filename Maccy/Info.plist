@@ -33,6 +33,8 @@
 	<key>SUEnableInstallerLauncherService</key>
 	<true/>
 	<key>SUFeedURL</key>
-	<string>https://raw.githubusercontent.com/p0deje/Maccy/master/appcast.xml</string>
+	<string>https://github.com/KayakCbun/Maccy/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>24OLpqiX4nLIH4xc8BU6FXlbiM68eS9z/T/tvz2aVxw=</string>
 </dict>
 </plist>

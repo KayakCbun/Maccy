@@ -90,3 +90,90 @@ jobs:
             uitest.log
             sample-*.txt
           retention-days: 7
+
+  # Builds the app signed with the fork's own certificate, so macOS keeps its permissions across
+  # updates, and signs the archive for Sparkle. On master it's published as a GitHub release whose
+  # appcast.xml the app checks for updates. Other branches only upload it, to check it before merging.
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.repository == 'KayakCbun/Maccy'
+    runs-on: macos-26
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      IDENTITY: Maccy Fork (KayakCbun)
+      SPARKLE_VERSION: 2.6.4
+      SPARKLE_SHA256: 50612a06038abc931f16011d7903b8326a362c1074dabccb718404ce8e585f0b
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set the version
+        run: |
+          echo "VERSION=2.6.1-fork.$GITHUB_RUN_NUMBER" >> "$GITHUB_ENV"
+          echo "BUILD_NUMBER=$((1000 + GITHUB_RUN_NUMBER))" >> "$GITHUB_ENV"
+
+      - name: Import the signing certificate
+        env:
+          CERTIFICATE_P12: ${{ secrets.SIGNING_CERTIFICATE_P12 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
+        run: |
+          keychain="$RUNNER_TEMP/signing.keychain-db"
+          password=$(uuidgen)
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 3600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          echo "$CERTIFICATE_P12" | base64 --decode > "$RUNNER_TEMP/signing.p12"
+          security import "$RUNNER_TEMP/signing.p12" -k "$keychain" -P "$CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+          rm "$RUNNER_TEMP/signing.p12"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$password" "$keychain" > /dev/null
+          security list-keychains -d user -s "$keychain" $(security list-keychains -d user | tr -d '"')
+          # Xcode only signs with certificates trusted for code signing, and this one is self-signed.
+          security find-certificate -c "$IDENTITY" -p "$keychain" > "$RUNNER_TEMP/signing.pem"
+          sudo security add-trusted-cert -d -r trustRoot -p codeSign -k /Library/Keychains/System.keychain "$RUNNER_TEMP/signing.pem"
+          security find-identity -v -p codesigning "$keychain"
+          echo "KEYCHAIN=$keychain" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project Maccy.xcodeproj -scheme Maccy -configuration Release \
+            -destination 'generic/platform=macOS' -derivedDataPath build \
+            CODE_SIGN_IDENTITY="$IDENTITY" CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= PROVISIONING_PROFILE_SPECIFIER= \
+            OTHER_CODE_SIGN_FLAGS="--keychain $KEYCHAIN" ENABLE_HARDENED_RUNTIME=NO \
+            MARKETING_VERSION="$VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            > build.log 2>&1 || { grep -E "error:" build.log | sort -u | head -50; tail -30 build.log; exit 1; }
+          app=build/Build/Products/Release/Maccy.app
+          codesign --verify --deep --strict "$app"
+          codesign --display --requirements - "$app" 2>&1 | grep designated
+          ditto -c -k --keepParent "$app" Maccy.zip
+
+      - name: Sign the update
+        env:
+          SPARKLE_ED_PRIVATE_KEY: ${{ secrets.SPARKLE_ED_PRIVATE_KEY }}
+        run: |
+          curl -sSL -o sparkle.tar.xz "https://github.com/sparkle-project/Sparkle/releases/download/$SPARKLE_VERSION/Sparkle-$SPARKLE_VERSION.tar.xz"
+          echo "$SPARKLE_SHA256  sparkle.tar.xz" | shasum -a 256 -c -
+          mkdir sparkle && tar -xf sparkle.tar.xz -C sparkle
+          signature=$(echo "$SPARKLE_ED_PRIVATE_KEY" | sparkle/bin/sign_update --ed-key-file - Maccy.zip)
+          .github/scripts/appcast.py "$VERSION" "$BUILD_NUMBER" \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/v$VERSION/Maccy.zip" \
+            "$signature" "$(git log -1 --format=%B)" appcast.xml
+          cat appcast.xml
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Maccy-release
+          path: |
+            Maccy.zip
+            appcast.xml
+          retention-days: 14
+
+      - name: Publish
+        if: github.ref == 'refs/heads/master'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git log -1 --format=%B | grep -v "^Co-Authored-By:" > notes.md
+          gh release create "v$VERSION" Maccy.zip appcast.xml \
+            --target "$GITHUB_SHA" --title "Maccy $VERSION" --notes-file notes.md
