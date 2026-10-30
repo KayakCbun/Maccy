@@ -1,0 +1,57 @@
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+# Builds an ad-hoc signed Maccy.app without a developer account and runs the unit tests.
+env:
+  SIGNING: >-
+    CODE_SIGN_IDENTITY=-
+    CODE_SIGN_STYLE=Manual
+    DEVELOPMENT_TEAM=
+    PROVISIONING_PROFILE_SPECIFIER=
+    ENABLE_HARDENED_RUNTIME=NO
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Xcode
+        run: xcodebuild -version
+
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project Maccy.xcodeproj -scheme Maccy -configuration Release \
+            -destination 'generic/platform=macOS' -derivedDataPath build \
+            $SIGNING > build.log 2>&1 || { grep -E "error:" build.log | sort -u | head -50; tail -30 build.log; exit 1; }
+          grep -E "warning:" build.log | grep "/Maccy/" | sort -u || true
+
+      - name: Package
+        run: |
+          ditto -c -k --keepParent build/Build/Products/Release/Maccy.app Maccy.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Maccy
+          path: Maccy.zip
+          retention-days: 14
+
+      - name: Unit tests
+        run: |
+          xcodebuild test \
+            -project Maccy.xcodeproj -scheme Maccy -testPlan Maccy \
+            -destination 'platform=macOS' -derivedDataPath build-tests \
+            -only-testing:MaccyTests \
+            $SIGNING > test.log 2>&1 || { grep -E "error:|failed|Fatal" test.log | sort -u | head -80; tail -40 test.log; exit 1; }
+          grep -E "Executed|passed|skipped" test.log | tail -5
