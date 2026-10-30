@@ -3,7 +3,7 @@
 "Files" = "文件";
 "Images" = "图像";
 "Text" = "文本";
-"SaveDescription" = "设置何种类型的内容会被保存。";
+"SaveDescription" = "设置何种类型的内容会被保存。图像包括 PNG、JPEG、GIF、HEIC、WebP 等格式，动图在预览里可以播放。";
 "Size" = "数量：";
 "SizeTooltip" = "保留条历史记录。\n默认: 200。";
 "CurrentSizeTooltip" = "磁盘上的当前大小。";

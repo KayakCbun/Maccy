@@ -8,7 +8,7 @@ struct HistoryItemView: View {
   @FocusState private var editFocused: Bool
 
   var body: some View {
-    if item.isEditing {
+    if item.isEditing || item.isRenaming {
       editingView
     } else {
       normalView
@@ -20,12 +20,23 @@ struct HistoryItemView: View {
       id: item.id,
       appIcon: item.applicationImage,
       image: item.thumbnailImage,
-      accessoryImage: item.thumbnailImage != nil ? nil : ColorImage.from(item.title),
+      imageBadge: item.thumbnailBadge,
+      showsTitleWithImage: item.item.customTitle != nil,
+      accessoryImage: item.thumbnailImage != nil ? nil : ColorImage.from(item.item.title),
       attributedTitle: item.attributedTitle,
+      marker: item.isArchived ? "archivebox" : nil,
       shortcuts: item.shortcuts,
       isSelected: item.isSelected
     ) {
-      Text(verbatim: item.title)
+      HStack(spacing: 6) {
+        Text(verbatim: item.title)
+        // What a renamed item holds, for telling apart items with similar names.
+        if item.thumbnailImage == nil, let originalTitle = item.originalTitle {
+          Text(verbatim: originalTitle)
+            .foregroundStyle(.secondary)
+            .layoutPriority(-1)
+        }
+      }
     }
     .onAppear {
       item.ensureThumbnailImage()
@@ -49,6 +60,18 @@ struct HistoryItemView: View {
       }
 
       Button {
+        appState.history.startRenaming(item)
+      } label: {
+        Text("rename")
+      }
+
+      Button {
+        appState.history.toggleArchive(item)
+      } label: {
+        Text(item.isArchived ? "unarchive" : "archive")
+      }
+
+      Button {
         appState.history.togglePin(item)
       } label: {
         Text(item.isPinned ? "unpin" : "pin")
@@ -65,31 +88,35 @@ struct HistoryItemView: View {
   private var editingView: some View {
     HStack(spacing: 0) {
       Spacer().frame(width: 10)
-      TextField("", text: $item.editingText, axis: .vertical)
-        .textFieldStyle(.plain)
-        .lineLimit(1...5)
-        .focused($editFocused)
-        .onAppear {
-          editFocused = true
-        }
-        .onSubmit {
-          appState.history.saveEditing(item)
-        }
-        .onExitCommand {
-          appState.history.cancelEditing(item)
-        }
+      if item.isRenaming {
+        TextField(NSLocalizedString("rename_placeholder", comment: ""), text: $item.editingText)
+          .textFieldStyle(.plain)
+          .lineLimit(1)
+          .focused($editFocused)
+          .onAppear {
+            editFocused = true
+          }
+          .onSubmit(save)
+          .onExitCommand(perform: cancel)
+      } else {
+        TextField("", text: $item.editingText, axis: .vertical)
+          .textFieldStyle(.plain)
+          .lineLimit(1...5)
+          .focused($editFocused)
+          .onAppear {
+            editFocused = true
+          }
+          .onSubmit(save)
+          .onExitCommand(perform: cancel)
+      }
       Spacer().frame(width: 4)
-      Button {
-        appState.history.saveEditing(item)
-      } label: {
+      Button(action: save) {
         Image(systemName: "checkmark.circle.fill")
           .foregroundStyle(.green)
       }
       .buttonStyle(.plain)
       .padding(.trailing, 4)
-      Button {
-        appState.history.cancelEditing(item)
-      } label: {
+      Button(action: cancel) {
         Image(systemName: "xmark.circle.fill")
           .foregroundStyle(.secondary)
       }
@@ -101,5 +128,21 @@ struct HistoryItemView: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(Color.accentColor.opacity(0.15))
     .clipShape(.rect(cornerRadius: Popup.cornerRadius))
+  }
+
+  private func save() {
+    if item.isRenaming {
+      appState.history.saveRenaming(item)
+    } else {
+      appState.history.saveEditing(item)
+    }
+  }
+
+  private func cancel() {
+    if item.isRenaming {
+      appState.history.cancelRenaming(item)
+    } else {
+      appState.history.cancelEditing(item)
+    }
   }
 }

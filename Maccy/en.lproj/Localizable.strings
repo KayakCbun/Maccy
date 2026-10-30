@@ -1,6 +1,6 @@
 "search_placeholder" = "type to search…";
-"clear_tooltip" = "Clear unpinned items.\nSelect with ⇧ to clear all.";
-"clear_all_tooltip" = "Clear all items.";
+"clear_tooltip" = "Clear items that are neither pinned nor archived.\nSelect with ⇧ to clear all but archived ones.";
+"clear_all_tooltip" = "Clear all items except archived ones.";
 "about_tooltip" = "Read more about the application.";
 "quit_tooltip" = "Quit application.";
 "clear" = "Clear";
@@ -33,3 +33,8 @@
 "unpin" = "Unpin";
 "delete" = "Delete";
 "add_new" = "Add new item";
+"archive" = "Archive";
+"unarchive" = "Unarchive";
+"rename" = "Rename…";
+"rename_placeholder" = "Name";
+"archived" = "Archived";

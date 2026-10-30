@@ -25,6 +25,11 @@ struct KeyHandlingView<Content: View>: View {
           }
         }
 
+        // Leave ↩, ⎋ and the arrows to the field an item is being edited or renamed in.
+        if appState.history.isEditingItem {
+          return .ignored
+        }
+
         switch KeyChord(NSApp.currentEvent) {
         case .clearHistory:
           if let item = appState.footer.items.first(where: { $0.title == "clear" }),
@@ -111,6 +116,12 @@ struct KeyHandlingView<Content: View>: View {
           return .handled
         case .pinOrUnpin:
           appState.history.togglePin(appState.history.selectedItem)
+          return .handled
+        case .archiveOrUnarchive:
+          appState.history.toggleArchive(appState.history.selectedItem)
+          return .handled
+        case .renameCurrentItem:
+          appState.history.startRenaming(appState.history.selectedItem)
           return .handled
         case .selectCurrentItem:
           appState.select()

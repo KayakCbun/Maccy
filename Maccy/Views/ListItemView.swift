@@ -5,8 +5,14 @@ struct ListItemView<Title: View>: View {
   var id: UUID
   var appIcon: ApplicationImage?
   var image: NSImage?
+  /// A short label on the image, such as "GIF".
+  var imageBadge: String?
+  /// Shows the title next to the image instead of the image alone.
+  var showsTitleWithImage = false
   var accessoryImage: NSImage?
   var attributedTitle: AttributedString?
+  /// An SF Symbol marking the item, shown before its shortcut.
+  var marker: String?
   var shortcuts: [KeyShortcut]
   var isSelected: Bool
   var help: LocalizedStringKey?
@@ -43,14 +49,33 @@ struct ListItemView<Title: View>: View {
       if let image {
         Image(nsImage: image)
           .accessibilityIdentifier("copy-history-item")
+          .overlay(alignment: .bottomTrailing) {
+            if let imageBadge {
+              Text(verbatim: imageBadge)
+                .font(.system(size: 9, weight: .semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 3)
+                .background(.black.opacity(0.55), in: .rect(cornerRadius: 3))
+                .padding(2)
+            }
+          }
           .padding(.trailing, 5)
           .padding(.vertical, 5)
-      } else {
+      }
+
+      if image == nil || showsTitleWithImage {
         ListItemTitleView(attributedTitle: attributedTitle, title: title)
           .padding(.trailing, 5)
       }
 
       Spacer()
+
+      if let marker {
+        Image(systemName: marker)
+          .font(.system(size: 11))
+          .foregroundStyle(.secondary)
+          .padding(.trailing, shortcuts.isEmpty ? 0 : 4)
+      }
 
       if !shortcuts.isEmpty {
         ZStack {

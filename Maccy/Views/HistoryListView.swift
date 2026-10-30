@@ -73,6 +73,8 @@ struct HistoryListView: View {
           } else {
             modifierFlags.flags = []
             appState.isKeyboardNavigating = true
+            // Clicking away from a rename keeps the new name, as in Finder.
+            appState.history.items.filter(\.isRenaming).forEach { appState.history.saveRenaming($0) }
           }
         }
         // Calculate the total height inside a scroll view.

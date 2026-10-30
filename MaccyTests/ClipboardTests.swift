@@ -316,5 +316,57 @@ class ClipboardTests: XCTestCase {
 
     waitForExpectations(timeout: 2)
   }
+
+  func testSavesCopiesHoldingOnlyAGIF() {
+    Defaults[.enabledPasteboardTypes] = Set(StorageType.all.types)
+    let gif = gifData(frames: 2)
+
+    let hookExpectation = expectation(description: "Hook is called")
+    clipboard.onNewCopy({ (item: HistoryItem) in
+      XCTAssertEqual(item.contents.map({ $0.type }), [NSPasteboard.PasteboardType.gif.rawValue])
+      XCTAssertEqual(item.animatedImageData, gif)
+      hookExpectation.fulfill()
+    })
+
+    clipboard.start()
+    pasteboard.clearContents()
+    pasteboard.setData(gif, forType: .gif)
+
+    waitForExpectations(timeout: 2)
+  }
+
+  func testIgnoresGIFsWhenImagesAreOff() {
+    Defaults[.enabledPasteboardTypes] = Set(StorageType.text.types)
+
+    let hookExpectation = expectation(description: "Hook is called")
+    hookExpectation.isInverted = true
+    clipboard.onNewCopy({ (_: HistoryItem) in
+      hookExpectation.fulfill()
+    })
+
+    clipboard.start()
+    pasteboard.clearContents()
+    pasteboard.setData(gifData(frames: 2), forType: .gif)
+
+    waitForExpectations(timeout: 2)
+  }
+
+  @MainActor
+  func testCopyOffersGIFBeforeTIFF() {
+    let gif = gifData(frames: 2)
+    let item = HistoryItem()
+    Storage.shared.context.insert(item)
+    item.contents = [
+      HistoryItemContent(type: tiffType.rawValue, value: image.tiffRepresentation!),
+      HistoryItemContent(type: stringType.rawValue, value: "foo".data(using: .utf8)!),
+      HistoryItemContent(type: NSPasteboard.PasteboardType.gif.rawValue, value: gif)
+    ]
+    clipboard.copy(item)
+
+    let types = pasteboard.types ?? []
+    XCTAssertEqual(pasteboard.data(forType: .gif), gif)
+    XCTAssertEqual(pasteboard.string(forType: .string), "foo")
+    XCTAssertLessThan(types.firstIndex(of: .gif)!, types.firstIndex(of: .tiff)!)
+  }
 }
 // swiftlint:enable type_body_length

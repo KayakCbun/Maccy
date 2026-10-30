@@ -4,3 +4,5 @@
 "NumberOfCopies" = "Number of copies:";
 "PinKey" = "Press {pinKey} to (un)pin.";
 "DeleteKey" = "Press {deleteKey} to delete.";
+"ArchivedTime" = "Archived:";
+"ArchiveKey" = "Press {archiveKey} to (un)archive, ⌘R to rename.";

@@ -3,6 +3,7 @@ import Defaults
 import Foundation
 import Observation
 import Sauce
+import UniformTypeIdentifiers
 
 @Observable
 class HistoryItemDecorator: Identifiable, Hashable {
@@ -36,6 +37,7 @@ class HistoryItemDecorator: Identifiable, Hashable {
   var shortcuts: [KeyShortcut] = []
   var showPreview: Bool = false
   var isEditing: Bool = false
+  var isRenaming: Bool = false
   var editingText: String = ""
 
   var application: String? {
@@ -56,6 +58,10 @@ class HistoryItemDecorator: Identifiable, Hashable {
   var thumbnailImageGenerationTask: Task<(), Error>?
   var previewImage: NSImage?
   var thumbnailImage: NSImage?
+  /// Set with the preview when the image is animated, so the preview can play it.
+  var animatedPreviewData: Data?
+  /// "GIF" and the like on the thumbnail of an animated image.
+  var thumbnailBadge: String?
   var applicationImage: ApplicationImage
 
   // 10k characters seems to be more than enough on large displays
@@ -63,6 +69,16 @@ class HistoryItemDecorator: Identifiable, Hashable {
 
   var isPinned: Bool { item.pin != nil }
   var isUnpinned: Bool { item.pin == nil }
+  var isArchived: Bool { item.archivedAt != nil }
+
+  /// The title made from the content, when a custom title is shown in its place.
+  var originalTitle: String? {
+    guard item.customTitle != nil, !item.title.isEmpty else {
+      return nil
+    }
+
+    return item.title
+  }
 
   func hash(into hasher: inout Hasher) {
     // We need to hash title and attributedTitle, so SwiftUI knows it needs to update the view if they chage
@@ -76,7 +92,7 @@ class HistoryItemDecorator: Identifiable, Hashable {
   init(_ item: HistoryItem, shortcuts: [KeyShortcut] = []) {
     self.item = item
     self.shortcuts = shortcuts
-    self.title = item.title
+    self.title = item.displayTitle
     self.applicationImage = ApplicationImageCache.shared.getImage(item: item)
 
     synchronizeItemPin()
@@ -123,6 +139,7 @@ class HistoryItemDecorator: Identifiable, Hashable {
     previewImage?.recache()
     thumbnailImage = nil
     previewImage = nil
+    animatedPreviewData = nil
   }
 
   @MainActor
@@ -131,6 +148,9 @@ class HistoryItemDecorator: Identifiable, Hashable {
       return
     }
     thumbnailImage = image.resized(to: HistoryItemDecorator.thumbnailImageSize)
+    if item.animatedImageData != nil, let type = item.imageContent?.type {
+      thumbnailBadge = type == .png ? "APNG" : UTType(type.rawValue)?.preferredFilenameExtension?.uppercased()
+    }
   }
 
   @MainActor
@@ -139,6 +159,7 @@ class HistoryItemDecorator: Identifiable, Hashable {
       return
     }
     previewImage = image.resized(to: HistoryItemDecorator.previewImageSize)
+    animatedPreviewData = item.animatedImageData
   }
 
   @MainActor
@@ -199,10 +220,10 @@ class HistoryItemDecorator: Identifiable, Hashable {
 
   private func synchronizeItemTitle() {
     _ = withObservationTracking {
-      item.title
+      item.displayTitle
     } onChange: {
       DispatchQueue.main.async {
-        self.title = self.item.title
+        self.title = self.item.displayTitle
         self.synchronizeItemTitle()
       }
     }

@@ -17,6 +17,9 @@ enum KeyChord: CaseIterable {
   static var pinKey: Key? { Sauce.shared.key(shortcut: .pin) }
   static var pinModifiers: NSEvent.ModifierFlags? { KeyboardShortcuts.Shortcut(name: .pin)?.modifiers }
 
+  static var archiveKey: Key? { Sauce.shared.key(shortcut: .archive) }
+  static var archiveModifiers: NSEvent.ModifierFlags? { KeyboardShortcuts.Shortcut(name: .archive)?.modifiers }
+
   case clearHistory
   case clearHistoryAll
   case clearSearch
@@ -30,8 +33,10 @@ enum KeyChord: CaseIterable {
   case moveToFirst
   case openPreferences
   case pinOrUnpin
+  case archiveOrUnarchive
   case selectCurrentItem
   case editCurrentItem
+  case renameCurrentItem
   case close
   case unknown
 
@@ -96,8 +101,12 @@ enum KeyChord: CaseIterable {
       self = .moveToFirst
     case (KeyChord.pinKey, KeyChord.pinModifiers):
       self = .pinOrUnpin
+    case (KeyChord.archiveKey, KeyChord.archiveModifiers):
+      self = .archiveOrUnarchive
     case (.e, [.command]):
       self = .editCurrentItem
+    case (.r, [.command]):
+      self = .renameCurrentItem
     case (.comma, [.command]):
       self = .openPreferences
     case (.return, _),

@@ -1,5 +1,6 @@
 import Foundation
 import AppIntents
+import UniformTypeIdentifiers
 
 struct Get: AppIntent, CustomIntentMigratedAppIntent {
   static let intentClassName = "GetIntent"
@@ -57,8 +58,9 @@ struct Get: AppIntent, CustomIntentMigratedAppIntent {
       intentItem.file = fileURL
     }
 
-    if let imageData = item.imageData {
-      let file = URL.documentsDirectory.appending(path: "image.png")
+    if let (type, imageData) = item.imageContent {
+      let fileExtension = UTType(type.rawValue)?.preferredFilenameExtension ?? "png"
+      let file = URL.documentsDirectory.appending(path: "image.\(fileExtension)")
       try imageData.write(to: file, options: [.atomic, .completeFileProtection])
       intentItem.image = file
     }
