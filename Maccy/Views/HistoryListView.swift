@@ -77,6 +77,11 @@ struct HistoryListView: View {
             appState.history.items.filter(\.isRenaming).forEach { appState.history.saveRenaming($0) }
           }
         }
+        .onChange(of: appState.history.isEditingItem) {
+          if !appState.history.isEditingItem {
+            searchFocused = true
+          }
+        }
         // Calculate the total height inside a scroll view.
         .background {
           GeometryReader { geo in

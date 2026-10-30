@@ -1,4 +1,6 @@
 import Carbon
+import ImageIO
+import UniformTypeIdentifiers
 import XCTest
 
 // swiftlint:disable file_length
@@ -237,6 +239,59 @@ class MaccyUITests: XCTestCase {
     popUpWithMouse()
     assertNotExists(items[copy1])
     assertExists(items[copy2])
+  }
+
+  func testArchivedItemSurvivesClear() {
+    popUpWithMouse()
+    hover(items[copy2].firstMatch)
+    app.typeKey("a", modifierFlags: [.option])
+    usleep(500_000)
+    app.staticTexts["Clear"].click()
+    confirmClear()
+    popUpWithMouse()
+    assertNotExists(items[copy1])
+    assertExists(items[copy2])
+  }
+
+  func testRenameAndSearchByNameOrContent() {
+    popUpWithMouse()
+    hover(items[copy1].firstMatch)
+    app.typeKey("r", modifierFlags: [.command])
+    typeKeys("work notes")
+    app.typeKey(.return, modifierFlags: [])
+    assertExists(app.staticTexts["work notes"])
+
+    app.typeKey(.escape, modifierFlags: [])
+    popUpWithMouse()
+    search("work")
+    assertExists(app.staticTexts["work notes"])
+    assertNotExists(items[copy2])
+
+    app.typeKey("u", modifierFlags: [.control])
+    search(String(copy1.prefix(8)))
+    assertExists(app.staticTexts["work notes"])
+    assertNotExists(items[copy2])
+  }
+
+  func testEscapeCancelsRename() {
+    popUpWithMouse()
+    hover(items[copy1].firstMatch)
+    app.typeKey("r", modifierFlags: [.command])
+    typeKeys("zzz")
+    app.typeKey(.escape, modifierFlags: [])
+    assertExists(app.staticTexts[copy1])
+    // The first ⎋ only ended the rename.
+    app.typeKey(.escape, modifierFlags: [])
+    assertPopupDismissed()
+  }
+
+  func testCopyAnimatedGIF() {
+    let gif = animatedGIF()
+    copyToClipboard(gif, .gif)
+    popUpWithMouse()
+    assertExists(app.staticTexts["GIF"])
+    items.matching(imageType).firstMatch.click()
+    assertPasteboardDataEquals(gif, forType: .gif)
   }
 
   func testClearDuringSearch() {
@@ -569,6 +624,31 @@ class MaccyUITests: XCTestCase {
     waitForSearch()
   }
 
+  private func typeKeys(_ string: String) {
+    // See search() for why this doesn't use app.typeText.
+    string.forEach {
+      app.typeKey("\($0)", modifierFlags: [])
+    }
+  }
+
+  private func animatedGIF() -> Data {
+    let data = NSMutableData()
+    let destination = CGImageDestinationCreateWithData(data, UTType.gif.identifier as CFString, 2, nil)!
+    let frameProperties = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: 0.1]] as CFDictionary
+    for red in [0.0, 1.0] {
+      let context = CGContext(
+        data: nil, width: 8, height: 8, bitsPerComponent: 8, bytesPerRow: 0,
+        space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+      )!
+      context.setFillColor(CGColor(red: red, green: 0, blue: 1, alpha: 1))
+      context.fill(CGRect(x: 0, y: 0, width: 8, height: 8))
+      CGImageDestinationAddImage(destination, context.makeImage()!, frameProperties)
+    }
+    CGImageDestinationFinalize(destination)
+
+    return data as Data
+  }
+
   private func waitForSearch() {
     // NOTE: This is a hack and is flaky.
     // Ideally we should wait for a proper condition to detect that search has settled down.
@@ -646,3 +726,7 @@ class MaccyUITests: XCTestCase {
 }
 // swiftlint:enable type_body_length
 // swiftlint:enable file_length
+
+private extension NSPasteboard.PasteboardType {
+  static let gif = NSPasteboard.PasteboardType(rawValue: "com.compuserve.gif")
+}
