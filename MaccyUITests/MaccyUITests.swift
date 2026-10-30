@@ -280,6 +280,9 @@ class MaccyUITests: XCTestCase {
     popUpWithMouse()
     items[copy1].firstMatch.rightClick()
     app.menuItems["Rename…"].click()
+    print("AX-DUMP after Rename… (immediately):\n\(app.windows.firstMatch.debugDescription)")
+    usleep(1_000_000)
+    print("AX-DUMP after Rename… (1 s):\n\(app.windows.firstMatch.debugDescription)")
     let field = app.textFields["edit-field"]
     assertExists(field)
     typeKeys("work notes")
