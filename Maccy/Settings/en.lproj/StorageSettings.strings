@@ -3,7 +3,7 @@
 "Files" = "Files";
 "Images" = "Images";
 "Text" = "Text";
-"SaveDescription" = "Change what types of copied content should be stored.";
+"SaveDescription" = "Change what types of copied content should be stored. Images include PNG, JPEG, GIF, HEIC and WebP; animated ones play in the preview.";
 "Size" = "Size:";
 "SizeTooltip" = "Number of history items to keep.\nDefault: 200.";
 "CurrentSizeTooltip" = "Current size on disk.";

@@ -2,8 +2,13 @@ import AppKit.NSPasteboard
 import Defaults
 
 extension NSPasteboard.PasteboardType: Defaults.Serializable {
+  static let avif = NSPasteboard.PasteboardType(rawValue: "public.avif")
+  static let bmp = NSPasteboard.PasteboardType(rawValue: "com.microsoft.bmp")
+  static let gif = NSPasteboard.PasteboardType(rawValue: "com.compuserve.gif")
   static let heic = NSPasteboard.PasteboardType(rawValue: "public.heic")
+  static let heif = NSPasteboard.PasteboardType(rawValue: "public.heif")
   static let jpeg = NSPasteboard.PasteboardType(rawValue: "public.jpeg")
+  static let webp = NSPasteboard.PasteboardType(rawValue: "org.webmproject.webp")
   static let universalClipboard = NSPasteboard.PasteboardType(rawValue: "com.apple.is-remote-clipboard")
 
   // See http://nspasteboard.org for more details.

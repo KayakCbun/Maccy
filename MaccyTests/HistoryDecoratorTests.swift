@@ -76,6 +76,22 @@ class HistoryItemDecoratorTests: XCTestCase {
     XCTAssertEqual(itemDecorator.thumbnailImage!.size, NSSize(width: 40, height: 40))
   }
 
+  func testAnimatedImage() {
+    let gif = gifData(frames: 2)
+    let itemDecorator = historyItemDecorator(gif, .gif)
+    itemDecorator.sizeImages()
+    XCTAssertEqual(itemDecorator.thumbnailBadge, "GIF")
+    XCTAssertEqual(itemDecorator.animatedPreviewData, gif)
+    XCTAssertNotNil(itemDecorator.previewImage)
+  }
+
+  func testStillImageHasNoBadge() {
+    let itemDecorator = historyItemDecorator(gifData(frames: 1), .gif)
+    itemDecorator.sizeImages()
+    XCTAssertNil(itemDecorator.thumbnailBadge)
+    XCTAssertNil(itemDecorator.animatedPreviewData)
+  }
+
   func testFile() {
     let url = URL(fileURLWithPath: "/tmp/foo.bar")
     let itemDecorator = historyItemDecorator(url)

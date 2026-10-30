@@ -20,12 +20,23 @@ struct HistoryItemView: View {
       id: item.id,
       appIcon: item.applicationImage,
       image: item.thumbnailImage,
-      accessoryImage: item.thumbnailImage != nil ? nil : ColorImage.from(item.title),
+      imageBadge: item.thumbnailBadge,
+      showsTitleWithImage: item.item.customTitle != nil,
+      accessoryImage: item.thumbnailImage != nil ? nil : ColorImage.from(item.item.title),
       attributedTitle: item.attributedTitle,
+      marker: item.isArchived ? "archivebox" : nil,
       shortcuts: item.shortcuts,
       isSelected: item.isSelected
     ) {
-      Text(verbatim: item.title)
+      HStack(spacing: 6) {
+        Text(verbatim: item.title)
+        // What a renamed item holds, for telling apart items with similar names.
+        if item.thumbnailImage == nil, let originalTitle = item.originalTitle {
+          Text(verbatim: originalTitle)
+            .foregroundStyle(.secondary)
+            .layoutPriority(-1)
+        }
+      }
     }
     .onAppear {
       item.ensureThumbnailImage()
@@ -49,6 +60,18 @@ struct HistoryItemView: View {
       }
 
       Button {
+        appState.history.startRenaming(item)
+      } label: {
+        Text("rename")
+      }
+
+      Button {
+        appState.history.toggleArchive(item)
+      } label: {
+        Text(item.isArchived ? "unarchive" : "archive")
+      }
+
+      Button {
         appState.history.togglePin(item)
       } label: {
         Text(item.isPinned ? "unpin" : "pin")
@@ -59,6 +82,20 @@ struct HistoryItemView: View {
       } label: {
         Text("delete")
       }
+    }
+    // An alert rather than a field in the row: in UI tests the row never turned into a field.
+    .alert(Text("rename_title"), isPresented: $item.isRenaming) {
+      TextField(NSLocalizedString("rename_placeholder", comment: ""), text: $item.editingText)
+        .accessibilityIdentifier("edit-field")
+      Button("rename_save") {
+        appState.history.saveRenaming(item)
+      }
+      .keyboardShortcut(.defaultAction)
+      Button("rename_cancel", role: .cancel) {
+        appState.history.cancelRenaming(item)
+      }
+    } message: {
+      Text("rename_message")
     }
   }
 

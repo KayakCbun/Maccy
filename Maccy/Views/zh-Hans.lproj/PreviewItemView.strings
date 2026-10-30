@@ -4,3 +4,5 @@
 "NumberOfCopies" = "复制次数:";
 "PinKey" = "按 {pinKey} (取消)固定。";
 "DeleteKey" = "按 {deleteKey} 删除。";
+"ArchivedTime" = "归档时间:";
+"ArchiveKey" = "按 {archiveKey} (取消)归档，⌘R 重命名。";

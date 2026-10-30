@@ -21,13 +21,17 @@ class AppState: Sendable {
   }
 
   func selectWithoutScrolling(_ item: UUID?) {
-    history.selectedItem = nil
-    footer.selectedItem = nil
+    let historyItem = history.items.first { $0.id == item }
+    let footerItem = historyItem == nil ? footer.items.first { $0.id == item } : nil
 
-    if let item = history.items.first(where: { $0.id == item }) {
-      history.selectedItem = item
-    } else if let item = footer.items.first(where: { $0.id == item }) {
-      footer.selectedItem = item
+    // Rows report hover again after layout, and selecting the selected row again used to deselect
+    // it first, closing and reopening its preview. That changed the layout, which reported hover
+    // again: with large image previews this kept the main thread busy for good.
+    if history.selectedItem?.id != historyItem?.id {
+      history.selectedItem = historyItem
+    }
+    if footer.selectedItem?.id != footerItem?.id {
+      footer.selectedItem = footerItem
     }
   }
 

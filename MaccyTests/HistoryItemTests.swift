@@ -1,5 +1,7 @@
 import XCTest
 import Defaults
+import ImageIO
+import UniformTypeIdentifiers
 @testable import Maccy
 
 // swiftlint:disable force_try
@@ -27,6 +29,18 @@ class HistoryItemTests: XCTestCase {
     let title = "\tfoo\tbar\t"
     let item = historyItem(title)
     XCTAssertEqual(item.title, "⇥foo⇥bar⇥")
+  }
+
+  // U+FFFC arrives from rich text with inline attachments and hangs CoreText
+  // on macOS 26. See https://github.com/p0deje/Maccy/issues/1520.
+  func testTitleWithObjectReplacementCharacters() {
+    let item = historyItem("\u{FFFC}复制\u{FFFC}粘贴\u{FFFC}")
+    XCTAssertEqual(item.title, "复制粘贴")
+  }
+
+  func testTitleWithObjectReplacementCharacterInsideGraphemeCluster() {
+    let item = historyItem("\u{FFFC}\u{0301}复制")
+    XCTAssertFalse(item.title.unicodeScalars.contains { $0.value == 0xFFFC })
   }
 
   func testTitleWithRTF() {
@@ -131,6 +145,44 @@ class HistoryItemTests: XCTestCase {
     XCTAssertEqual(item2.pin, "")
   }
 
+  func testAnimatedGIFIsPreferredOverItsTIFFFrame() {
+    let gif = gifData(frames: 3)
+    let item = HistoryItem()
+    Storage.shared.context.insert(item)
+    item.contents = [
+      HistoryItemContent(
+        type: NSPasteboard.PasteboardType.tiff.rawValue,
+        value: NSImage(data: gif)!.tiffRepresentation
+      ),
+      HistoryItemContent(type: NSPasteboard.PasteboardType.gif.rawValue, value: gif)
+    ]
+    XCTAssertEqual(item.imageContent?.type, .gif)
+    XCTAssertEqual(item.animatedImageData, gif)
+    XCTAssertNotNil(item.image)
+  }
+
+  func testStillGIFIsNotAnimated() {
+    let item = historyItem(gifData(frames: 1), .gif)
+    XCTAssertNotNil(item.image)
+    XCTAssertNil(item.animatedImageData)
+  }
+
+  func testJPEG() {
+    let url = Bundle(for: type(of: self)).url(forResource: "guy", withExtension: "jpeg")!
+    let item = historyItem(try! Data(contentsOf: url), .jpeg)
+    XCTAssertEqual(item.imageContent?.type, .jpeg)
+    XCTAssertNotNil(item.image)
+    XCTAssertNil(item.animatedImageData)
+  }
+
+  func testCustomTitleIsShownInsteadOfTitle() {
+    let item = historyItem("foo")
+    XCTAssertEqual(item.displayTitle, "foo")
+    item.customTitle = "bar"
+    XCTAssertEqual(item.displayTitle, "bar")
+    XCTAssertEqual(item.title, "foo")
+  }
+
   private func historyItem(_ value: String?) -> HistoryItem {
     let contents = [
       HistoryItemContent(
@@ -196,3 +248,22 @@ class HistoryItemTests: XCTestCase {
   }
 }
 // swiftlint:enable force_try
+
+/// A tiny GIF whose frames alternate between two colors.
+func gifData(frames: Int) -> Data {
+  let data = NSMutableData()
+  let destination = CGImageDestinationCreateWithData(data, UTType.gif.identifier as CFString, frames, nil)!
+  let frameProperties = [kCGImagePropertyGIFDictionary: [kCGImagePropertyGIFDelayTime: 0.1]] as CFDictionary
+  for index in 0..<frames {
+    let context = CGContext(
+      data: nil, width: 4, height: 4, bitsPerComponent: 8, bytesPerRow: 0,
+      space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+    )!
+    context.setFillColor(CGColor(red: CGFloat(index % 2), green: 0, blue: 1, alpha: 1))
+    context.fill(CGRect(x: 0, y: 0, width: 4, height: 4))
+    CGImageDestinationAddImage(destination, context.makeImage()!, frameProperties)
+  }
+  CGImageDestinationFinalize(destination)
+
+  return data as Data
+}

@@ -3,7 +3,9 @@ import Defaults
 
 struct StorageType {
   static let files = StorageType(types: [.fileURL])
-  static let images = StorageType(types: [.png, .tiff])
+  // Animated formats come first: when an app puts both a GIF and a TIFF frame of it
+  // on the pasteboard, the GIF is the one to show and paste.
+  static let images = StorageType(types: [.gif, .webp, .png, .heic, .heif, .avif, .jpeg, .bmp, .tiff])
   static let text = StorageType(types: [.html, .rtf, .string])
   static let all = StorageType(types: files.types + images.types + text.types)
 

@@ -1,5 +1,6 @@
 import AppKit
 import Defaults
+import ImageIO
 import Sauce
 import SwiftData
 import Vision
@@ -8,23 +9,21 @@ import Vision
 class HistoryItem {
   static var supportedPins: Set<String> {
     // "a" reserved for select all
+    // "e" reserved for edit
     // "q" reserved for quit
+    // "r" reserved for rename
     // "v" reserved for paste
     // "w" reserved for close window
     // "z" reserved for undo/redo
     var keys = Set([
-      "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l",
-      "m", "n", "o", "p", "r", "s", "t", "u", "x", "y"
+      "b", "c", "d", "f", "g", "h", "i", "j", "k", "l",
+      "m", "n", "o", "p", "s", "t", "u", "x", "y"
     ])
 
-    if let deleteKey = KeyChord.deleteKey,
-       let character = Sauce.shared.character(for: Int(deleteKey.QWERTYKeyCode), cocoaModifiers: []) {
-      keys.remove(character)
-    }
-
-    if let pinKey = KeyChord.pinKey,
-       let character = Sauce.shared.character(for: Int(pinKey.QWERTYKeyCode), cocoaModifiers: []) {
-      keys.remove(character)
+    for key in [KeyChord.deleteKey, KeyChord.pinKey, KeyChord.archiveKey] {
+      if let key, let character = Sauce.shared.character(for: Int(key.QWERTYKeyCode), cocoaModifiers: []) {
+        keys.remove(character)
+      }
     }
 
     return keys
@@ -61,6 +60,12 @@ class HistoryItem {
   var numberOfCopies: Int = 1
   var pin: String?
   var title = ""
+  /// Archived items are kept until deleted one by one: the size limit and clearing skip them.
+  var archivedAt: Date?
+  /// A name given by the user. It's shown instead of `title`; both are searched.
+  var customTitle: String?
+
+  var displayTitle: String { customTitle ?? title }
 
   @Relationship(deleteRule: .cascade, inverse: \HistoryItemContent.item)
   var contents: [HistoryItemContent] = []
@@ -83,14 +88,18 @@ class HistoryItem {
 
   func generateTitle() -> String {
     guard image == nil else {
-      Task {
+      // Vision blocks the thread it runs on, and can stall (as on CI runners). On a GCD queue
+      // that only ties up a thread of its own, not one of the few that Swift tasks share.
+      DispatchQueue.global(qos: .utility).async {
         self.performTextRecognition()
       }
       return ""
     }
 
     // 1k characters is trade-off for performance
-    var title = previewableText.shortened(to: 1_000)
+    var title = previewableText
+      .shortened(to: 1_000)
+      .removingScalarsUnsafeForTitleLayout()
 
     if Defaults[.showSpecialSymbols] {
       if let range = title.range(of: "^ +", options: .regularExpression) {
@@ -143,11 +152,29 @@ class HistoryItem {
     return NSAttributedString(html: data, documentAttributes: nil)
   }
 
-  var imageData: Data? {
-    var data: Data?
-    data = contentData([.tiff, .png, .jpeg, .heic])
-    if data == nil, universalClipboardImage, let url = fileURLs.first {
-      data = try? Data(contentsOf: url)
+  var imageData: Data? { imageContent?.data }
+
+  /// The image to show, picked by format rather than by the order the copying app used,
+  /// so a GIF wins over the still TIFF frame next to it.
+  var imageContent: (type: NSPasteboard.PasteboardType, data: Data)? {
+    for type in StorageType.images.types {
+      if let data = contentData([type]) {
+        return (type, data)
+      }
+    }
+    if universalClipboardImage, let url = fileURLs.first, let data = try? Data(contentsOf: url) {
+      return (.jpeg, data)
+    }
+
+    return nil
+  }
+
+  /// GIF, APNG and WebP images with more than one frame.
+  var animatedImageData: Data? {
+    guard let (type, data) = imageContent, [.gif, .png, .webp].contains(type),
+          let source = CGImageSourceCreateWithData(data as CFData, nil),
+          CGImageSourceGetCount(source) > 1 else {
+      return nil
     }
 
     return data

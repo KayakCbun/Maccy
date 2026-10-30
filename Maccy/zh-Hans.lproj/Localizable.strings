@@ -1,6 +1,6 @@
 "search_placeholder" = "搜索…";
-"clear_tooltip" = "清除未固定的项目。\n按住 ⇧ 以全部清除。";
-"clear_all_tooltip" = "清除全部项目。";
+"clear_tooltip" = "清除未固定、未归档的项目。\n按住 ⇧ 以清除归档以外的全部项目。";
+"clear_all_tooltip" = "清除归档以外的全部项目。";
 "about_tooltip" = "查看更多应用信息。";
 "quit_tooltip" = "退出应用。";
 "clear" = "清除";
@@ -28,3 +28,17 @@
 "system_settings_pane" = "“隐私与安全性“";
 "system_preferences_name" = "“系统偏好设置”";
 "system_preferences_pane" = "“安全性和隐私”";
+"edit" = "编辑";
+"pin" = "固定";
+"unpin" = "取消固定";
+"delete" = "删除";
+"add_new" = "添加新项目";
+"archive" = "归档";
+"unarchive" = "取消归档";
+"rename" = "重命名…";
+"rename_placeholder" = "名称";
+"archived" = "已归档";
+"rename_title" = "重命名";
+"rename_save" = "保存";
+"rename_cancel" = "取消";
+"rename_message" = "搜索时名字和原内容都能搜到。命名后会自动归档。名字留空则恢复显示原内容。";

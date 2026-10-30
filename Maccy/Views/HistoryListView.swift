@@ -75,6 +75,10 @@ struct HistoryListView: View {
             appState.isKeyboardNavigating = true
           }
         }
+        // Hand the keyboard to the field an item is edited or renamed in, and take it back after.
+        .onChange(of: appState.history.isEditingItem) {
+          searchFocused = !appState.history.isEditingItem
+        }
         // Calculate the total height inside a scroll view.
         .background {
           GeometryReader { geo in

@@ -129,6 +129,23 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       Defaults[.migrations]["2024-07-01-version-2"] = true
     }
 
+    if Defaults[.migrations]["2026-10-30-all-image-types"] != true {
+      // Saving images used to mean PNG and TIFF only, which dropped copies holding just a GIF or JPEG.
+      if Defaults[.enabledPasteboardTypes].isSuperset(of: [.png, .tiff]) {
+        Defaults[.enabledPasteboardTypes].formUnion(StorageType.images.types)
+      }
+
+      Defaults[.migrations]["2026-10-30-all-image-types"] = true
+    }
+
+    if Defaults[.migrations]["2026-10-30-sanitize-titles"] != true {
+      // Runs on the main thread while launching.
+      MainActor.assumeIsolated {
+        _ = try? Storage.shared.sanitizeTitles()
+      }
+      Defaults[.migrations]["2026-10-30-sanitize-titles"] = true
+    }
+
     // The following defaults are not used in Maccy 2.x
     // and should be removed in 3.x.
     // - LaunchAtLogin__hasMigrated
@@ -171,7 +188,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
   }
 
   private func disableUnusedGlobalHotkeys() {
-    let names: [KeyboardShortcuts.Name] = [.delete, .pin]
+    let names: [KeyboardShortcuts.Name] = [.delete, .pin, .archive]
     KeyboardShortcuts.disable(names)
 
     NotificationCenter.default.addObserver(

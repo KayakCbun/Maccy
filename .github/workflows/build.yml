@@ -1,0 +1,92 @@
+name: Build
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+# Builds an ad-hoc signed Maccy.app without a developer account and runs the unit tests.
+# The two skipped tests expect Xcode or Finder to be the frontmost app, which it isn't on a runner.
+env:
+  SIGNING: >-
+    CODE_SIGN_IDENTITY=-
+    CODE_SIGN_STYLE=Manual
+    DEVELOPMENT_TEAM=
+    PROVISIONING_PROFILE_SPECIFIER=
+    ENABLE_HARDENED_RUNTIME=NO
+  # A hung test is killed and reported instead of stalling the job.
+  TIMEOUTS: >-
+    -test-timeouts-enabled YES
+    -default-test-execution-time-allowance 60
+    -maximum-test-execution-time-allowance 120
+  # Lines .github/scripts/test.sh shows as the tests run.
+  PROGRESS: "Test Case .*(started|passed|failed)|error:|Executed|Restarting|crash"
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show Xcode
+        run: xcodebuild -version
+
+      - name: Build
+        run: |
+          xcodebuild build \
+            -project Maccy.xcodeproj -scheme Maccy -configuration Release \
+            -destination 'generic/platform=macOS' -derivedDataPath build \
+            $SIGNING > build.log 2>&1 || { grep -E "error:" build.log | sort -u | head -50; tail -30 build.log; exit 1; }
+          grep -E "warning:" build.log | grep "/Maccy/" | sort -u || true
+
+      - name: Package
+        run: |
+          ditto -c -k --keepParent build/Build/Products/Release/Maccy.app Maccy.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Maccy
+          path: Maccy.zip
+          retention-days: 14
+
+      - name: Unit tests
+        timeout-minutes: 15
+        run: |
+          .github/scripts/test.sh test.log \
+            -project Maccy.xcodeproj -scheme Maccy -testPlan Maccy \
+            -destination 'platform=macOS' -derivedDataPath build-tests \
+            -only-testing:MaccyTests \
+            -skip-testing:MaccyTests/ClipboardTests/testIgnoreApplication \
+            -skip-testing:MaccyTests/ClipboardTests/testIgnoreAllApplicationsExcept \
+            $TIMEOUTS $SIGNING
+
+      # A few existing UI tests run next to the new ones, to tell a broken runner from a broken feature.
+      - name: UI tests
+        if: ${{ !cancelled() }}
+        timeout-minutes: 20
+        run: |
+          tests=(testSearch testCopyWithEnter testCopyWithCommandShortcut testClear testCopyImage
+                 testArchivedItemSurvivesClear testRenameFromContextMenu testRenameAndSearchByNameOrContent
+                 testEscapeCancelsRename testCopyAnimatedGIF)
+          .github/scripts/test.sh uitest.log \
+            -project Maccy.xcodeproj -scheme Maccy -testPlan Maccy \
+            -destination 'platform=macOS' -derivedDataPath build-tests \
+            "${tests[@]/#/-only-testing:MaccyUITests/MaccyUITests/}" \
+            $TIMEOUTS $SIGNING
+
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: |
+            test.log
+            uitest.log
+            sample-*.txt
+          retention-days: 7

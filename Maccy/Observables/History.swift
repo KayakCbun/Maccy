@@ -124,9 +124,9 @@ class History { // swiftlint:disable:this type_body_length
 
   @MainActor
   private func limitHistorySize(to maxSize: Int) {
-    let unpinned = all.filter(\.isUnpinned)
-    if unpinned.count >= maxSize {
-      unpinned[maxSize...].forEach(delete)
+    let removable = all.filter { $0.isUnpinned && !$0.isArchived }
+    if removable.count >= maxSize {
+      removable[maxSize...].forEach(delete)
     }
   }
 
@@ -157,6 +157,8 @@ class History { // swiftlint:disable:this type_body_length
       item.numberOfCopies += existingHistoryItem.numberOfCopies
       item.pin = existingHistoryItem.pin
       item.title = existingHistoryItem.title
+      item.archivedAt = existingHistoryItem.archivedAt
+      item.customTitle = existingHistoryItem.customTitle
       if !item.fromMaccy {
         item.application = existingHistoryItem.application
       }
@@ -217,23 +219,20 @@ class History { // swiftlint:disable:this type_body_length
   @MainActor
   func clear() {
     withLogging("Clearing history") {
-      all.forEach { item in
-        if item.isUnpinned {
-          cleanup(item)
-        }
-      }
-      all.removeAll(where: \.isUnpinned)
-      sessionLog.removeValues { $0.pin == nil }
+      let cleared = { (item: HistoryItemDecorator) in item.isUnpinned && !item.isArchived }
+      all.filter(cleared).forEach(cleanup)
+      all.removeAll(where: cleared)
+      sessionLog.removeValues { $0.pin == nil && $0.archivedAt == nil }
       items = all
 
       try? Storage.shared.context.transaction {
         try? Storage.shared.context.delete(
           model: HistoryItem.self,
-          where: #Predicate { $0.pin == nil }
+          where: #Predicate { $0.pin == nil && $0.archivedAt == nil }
         )
         try? Storage.shared.context.delete(
           model: HistoryItemContent.self,
-          where: #Predicate { $0.item?.pin == nil }
+          where: #Predicate { $0.item?.pin == nil && $0.item?.archivedAt == nil }
         )
       }
       Storage.shared.context.processPendingChanges()
@@ -247,17 +246,25 @@ class History { // swiftlint:disable:this type_body_length
     }
   }
 
+  /// Clears pins too, but not archived items.
   @MainActor
   func clearAll() {
     withLogging("Clearing all history") {
-      all.forEach { item in
-        cleanup(item)
-      }
-      all.removeAll()
-      sessionLog.removeAll()
+      all.filter { !$0.isArchived }.forEach(cleanup)
+      all.removeAll { !$0.isArchived }
+      sessionLog.removeValues { $0.archivedAt == nil }
       items = all
 
-      try? Storage.shared.context.delete(model: HistoryItem.self)
+      try? Storage.shared.context.transaction {
+        try? Storage.shared.context.delete(
+          model: HistoryItem.self,
+          where: #Predicate { $0.archivedAt == nil }
+        )
+        try? Storage.shared.context.delete(
+          model: HistoryItemContent.self,
+          where: #Predicate { $0.item?.archivedAt == nil }
+        )
+      }
       Storage.shared.context.processPendingChanges()
       try? Storage.shared.context.save()
     }
@@ -361,7 +368,7 @@ class History { // swiftlint:disable:this type_body_length
     }
 
     item.item.title = item.item.generateTitle()
-    item.title = item.item.title
+    item.title = item.item.displayTitle
 
     Storage.shared.context.processPendingChanges()
     try? Storage.shared.context.save()
@@ -423,6 +430,54 @@ class History { // swiftlint:disable:this type_body_length
     }
   }
 
+  /// An archived item keeps its place in the list; it just stops being removed.
+  @MainActor
+  func toggleArchive(_ item: HistoryItemDecorator?) {
+    guard let item else { return }
+
+    item.item.archivedAt = item.isArchived ? nil : Date.now
+    Storage.shared.context.processPendingChanges()
+    try? Storage.shared.context.save()
+  }
+
+  var isEditingItem: Bool { items.contains { $0.isEditing || $0.isRenaming } }
+
+  @MainActor
+  func startRenaming(_ item: HistoryItemDecorator?) {
+    guard let item, !isEditingItem else { return }
+    item.editingText = item.item.customTitle ?? ""
+    item.isRenaming = true
+  }
+
+  /// Naming an item also archives it, as a name is for finding it again later.
+  /// An empty name brings back the title made from the content.
+  @MainActor
+  func saveRenaming(_ item: HistoryItemDecorator?) {
+    // The alert may already have reset isRenaming when its button runs this.
+    guard let item else { return }
+    item.isRenaming = false
+
+    let name = item.editingText
+      .removingScalarsUnsafeForTitleLayout()
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    item.item.customTitle = name.isEmpty ? nil : name
+    if !name.isEmpty, !item.isArchived {
+      item.item.archivedAt = Date.now
+    }
+    item.title = item.item.displayTitle
+    item.attributedTitle = nil
+
+    Storage.shared.context.processPendingChanges()
+    try? Storage.shared.context.save()
+  }
+
+  @MainActor
+  func cancelRenaming(_ item: HistoryItemDecorator?) {
+    guard let item else { return }
+    item.isRenaming = false
+    item.editingText = ""
+  }
+
   @MainActor
   private func findSimilarItem(_ item: HistoryItem) -> HistoryItem? {
     let descriptor = FetchDescriptor<HistoryItem>()
@@ -469,8 +524,8 @@ class History { // swiftlint:disable:this type_body_length
 
   @MainActor
   private func updateTitle(item: HistoryItemDecorator, title: String) {
-    item.title = title
     item.item.title = title
+    item.title = item.item.displayTitle
   }
 
   private func updateUnpinnedShortcuts() {
