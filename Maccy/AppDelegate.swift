@@ -139,7 +139,10 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     if Defaults[.migrations]["2026-10-30-sanitize-titles"] != true {
-      _ = try? Storage.shared.sanitizeTitles()
+      // Runs on the main thread while launching.
+      MainActor.assumeIsolated {
+        _ = try? Storage.shared.sanitizeTitles()
+      }
       Defaults[.migrations]["2026-10-30-sanitize-titles"] = true
     }
 
