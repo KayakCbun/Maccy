@@ -19,6 +19,13 @@ env:
     DEVELOPMENT_TEAM=
     PROVISIONING_PROFILE_SPECIFIER=
     ENABLE_HARDENED_RUNTIME=NO
+  # A hung test is killed and reported instead of stalling the job.
+  TIMEOUTS: >-
+    -test-timeouts-enabled YES
+    -default-test-execution-time-allowance 60
+    -maximum-test-execution-time-allowance 120
+  # Test progress shown live in the log, so the last test started is visible if a step hangs.
+  PROGRESS: "Test Case .*(started|passed|failed)|error:|Executed|Restarting|crash"
 
 jobs:
   build:
@@ -49,12 +56,30 @@ jobs:
           retention-days: 14
 
       - name: Unit tests
+        timeout-minutes: 15
         run: |
+          set -o pipefail
           xcodebuild test \
             -project Maccy.xcodeproj -scheme Maccy -testPlan Maccy \
             -destination 'platform=macOS' -derivedDataPath build-tests \
             -only-testing:MaccyTests \
             -skip-testing:MaccyTests/ClipboardTests/testIgnoreApplication \
             -skip-testing:MaccyTests/ClipboardTests/testIgnoreAllApplicationsExcept \
-            $SIGNING > test.log 2>&1 || { grep -E "error:|failed|Fatal" test.log | sort -u | head -80; tail -40 test.log; exit 1; }
-          grep -E "Executed|passed|skipped" test.log | tail -5
+            $TIMEOUTS $SIGNING 2>&1 | tee test.log | grep --line-buffered -E "$PROGRESS" \
+            || { grep -E "error:|failed|Fatal" test.log | sort -u | head -80; tail -40 test.log; exit 1; }
+
+      # A few existing UI tests run next to the new ones, to tell a broken runner from a broken feature.
+      - name: UI tests
+        if: ${{ !cancelled() }}
+        timeout-minutes: 20
+        run: |
+          set -o pipefail
+          tests=(testSearch testCopyWithEnter testClear testCopyImage
+                 testArchivedItemSurvivesClear testRenameAndSearchByNameOrContent
+                 testEscapeCancelsRename testCopyAnimatedGIF)
+          xcodebuild test \
+            -project Maccy.xcodeproj -scheme Maccy -testPlan Maccy \
+            -destination 'platform=macOS' -derivedDataPath build-tests \
+            "${tests[@]/#/-only-testing:MaccyUITests/MaccyUITests/}" \
+            $TIMEOUTS $SIGNING 2>&1 | tee uitest.log | grep --line-buffered -E "$PROGRESS" \
+            || { grep -E "error:|failed|Fatal" uitest.log | sort -u | head -80; tail -40 uitest.log; exit 1; }
