@@ -31,6 +31,18 @@ class HistoryItemTests: XCTestCase {
     XCTAssertEqual(item.title, "⇥foo⇥bar⇥")
   }
 
+  // U+FFFC arrives from rich text with inline attachments and hangs CoreText
+  // on macOS 26. See https://github.com/p0deje/Maccy/issues/1520.
+  func testTitleWithObjectReplacementCharacters() {
+    let item = historyItem("\u{FFFC}复制\u{FFFC}粘贴\u{FFFC}")
+    XCTAssertEqual(item.title, "复制粘贴")
+  }
+
+  func testTitleWithObjectReplacementCharacterInsideGraphemeCluster() {
+    let item = historyItem("\u{FFFC}\u{0301}复制")
+    XCTAssertFalse(item.title.unicodeScalars.contains { $0.value == 0xFFFC })
+  }
+
   func testTitleWithRTF() {
     let rtf = NSAttributedString(string: "foo").rtf(
       from: NSRange(0...2),

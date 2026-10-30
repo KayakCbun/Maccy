@@ -105,6 +105,15 @@ class ArchiveTests: XCTestCase {
     XCTAssertTrue(item.isArchived)
   }
 
+  func testNameDropsObjectReplacementCharacters() {
+    let item = history.add(historyItem("foo"))
+    history.startRenaming(item)
+    item.editingText = "\u{FFFC}服务器\u{FFFC}地址"
+    history.saveRenaming(item)
+
+    XCTAssertEqual(item.item.customTitle, "服务器地址")
+  }
+
   func testCancellingRenameKeepsTheTitle() {
     let item = history.add(historyItem("foo"))
     history.startRenaming(item)

@@ -102,7 +102,7 @@ struct ListItemView<Title: View>: View {
       if hovering {
         if !appState.isKeyboardNavigating {
           appState.selectWithoutScrolling(id)
-        } else {
+        } else if appState.hoverSelectionWhileKeyboardNavigating != id {
           appState.hoverSelectionWhileKeyboardNavigating = id
         }
       }

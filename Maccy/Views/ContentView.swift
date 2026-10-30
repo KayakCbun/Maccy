@@ -39,7 +39,10 @@ struct ContentView: View {
         searchFocused = true
       }
       .onMouseMove {
-        appState.isKeyboardNavigating = false
+        // Only on the first move, so moving the mouse doesn't update the view each time.
+        if appState.isKeyboardNavigating {
+          appState.isKeyboardNavigating = false
+        }
       }
       .task {
         try? await appState.history.load()

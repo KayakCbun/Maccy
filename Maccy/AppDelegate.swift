@@ -138,6 +138,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
       Defaults[.migrations]["2026-10-30-all-image-types"] = true
     }
 
+    if Defaults[.migrations]["2026-10-30-sanitize-titles"] != true {
+      _ = try? Storage.shared.sanitizeTitles()
+      Defaults[.migrations]["2026-10-30-sanitize-titles"] = true
+    }
+
     // The following defaults are not used in Maccy 2.x
     // and should be removed in 3.x.
     // - LaunchAtLogin__hasMigrated

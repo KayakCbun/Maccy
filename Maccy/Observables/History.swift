@@ -457,7 +457,9 @@ class History { // swiftlint:disable:this type_body_length
     guard let item else { return }
     item.isRenaming = false
 
-    let name = item.editingText.trimmingCharacters(in: .whitespacesAndNewlines)
+    let name = item.editingText
+      .removingScalarsUnsafeForTitleLayout()
+      .trimmingCharacters(in: .whitespacesAndNewlines)
     item.item.customTitle = name.isEmpty ? nil : name
     if !name.isEmpty, !item.isArchived {
       item.item.archivedAt = Date.now
