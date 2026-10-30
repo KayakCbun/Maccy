@@ -280,15 +280,21 @@ class MaccyUITests: XCTestCase {
     popUpWithMouse()
     items[copy1].firstMatch.rightClick()
     app.menuItems["Rename…"].click()
-    print("AX-DUMP after Rename… (immediately):\n\(app.windows.firstMatch.debugDescription)")
-    usleep(1_000_000)
-    print("AX-DUMP after Rename… (1 s):\n\(app.windows.firstMatch.debugDescription)")
+    print("AX-DUMP after Rename…:\n\(app.debugDescription)")
     let field = app.textFields["edit-field"]
     assertExists(field)
     typeKeys("work notes")
     XCTAssertEqual(field.value as? String, "work notes")
     app.typeKey(.return, modifierFlags: [])
     assertExists(app.staticTexts["work notes"])
+  }
+
+  func testEditWithCommandE() {
+    popUpWithMouse()
+    hover(items[copy1].firstMatch)
+    app.typeKey("e", modifierFlags: [.command])
+    print("AX-DUMP after ⌘E:\n\(app.debugDescription)")
+    assertExists(app.descendants(matching: .any)["edit-field"])
   }
 
   func testEscapeCancelsRename() {
