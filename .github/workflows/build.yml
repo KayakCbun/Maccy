@@ -24,7 +24,7 @@ env:
     -test-timeouts-enabled YES
     -default-test-execution-time-allowance 60
     -maximum-test-execution-time-allowance 120
-  # Test progress shown live in the log, so the last test started is visible if a step hangs.
+  # Lines .github/scripts/test.sh shows as the tests run.
   PROGRESS: "Test Case .*(started|passed|failed)|error:|Executed|Restarting|crash"
 
 jobs:
@@ -58,28 +58,35 @@ jobs:
       - name: Unit tests
         timeout-minutes: 15
         run: |
-          set -o pipefail
-          xcodebuild test \
+          .github/scripts/test.sh test.log \
             -project Maccy.xcodeproj -scheme Maccy -testPlan Maccy \
             -destination 'platform=macOS' -derivedDataPath build-tests \
             -only-testing:MaccyTests \
             -skip-testing:MaccyTests/ClipboardTests/testIgnoreApplication \
             -skip-testing:MaccyTests/ClipboardTests/testIgnoreAllApplicationsExcept \
-            $TIMEOUTS $SIGNING 2>&1 | tee test.log | grep --line-buffered -E "$PROGRESS" \
-            || { grep -E "error:|failed|Fatal" test.log | sort -u | head -80; tail -40 test.log; exit 1; }
+            $TIMEOUTS $SIGNING
 
       # A few existing UI tests run next to the new ones, to tell a broken runner from a broken feature.
       - name: UI tests
         if: ${{ !cancelled() }}
         timeout-minutes: 20
         run: |
-          set -o pipefail
           tests=(testSearch testCopyWithEnter testClear testCopyImage
                  testArchivedItemSurvivesClear testRenameAndSearchByNameOrContent
                  testEscapeCancelsRename testCopyAnimatedGIF)
-          xcodebuild test \
+          .github/scripts/test.sh uitest.log \
             -project Maccy.xcodeproj -scheme Maccy -testPlan Maccy \
             -destination 'platform=macOS' -derivedDataPath build-tests \
             "${tests[@]/#/-only-testing:MaccyUITests/MaccyUITests/}" \
-            $TIMEOUTS $SIGNING 2>&1 | tee uitest.log | grep --line-buffered -E "$PROGRESS" \
-            || { grep -E "error:|failed|Fatal" uitest.log | sort -u | head -80; tail -40 uitest.log; exit 1; }
+            $TIMEOUTS $SIGNING
+
+      - name: Upload test logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-logs
+          path: |
+            test.log
+            uitest.log
+            sample-*.txt
+          retention-days: 7
