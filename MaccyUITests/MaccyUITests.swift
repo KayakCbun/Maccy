@@ -257,7 +257,10 @@ class MaccyUITests: XCTestCase {
     popUpWithMouse()
     hover(items[copy1].firstMatch)
     app.typeKey("r", modifierFlags: [.command])
+    let field = app.textFields["edit-field"]
+    assertExists(field)
     typeKeys("work notes")
+    XCTAssertEqual(field.value as? String, "work notes")
     app.typeKey(.return, modifierFlags: [])
     assertExists(app.staticTexts["work notes"])
 
@@ -277,8 +280,12 @@ class MaccyUITests: XCTestCase {
     popUpWithMouse()
     hover(items[copy1].firstMatch)
     app.typeKey("r", modifierFlags: [.command])
+    let field = app.textFields["edit-field"]
+    assertExists(field)
     typeKeys("zzz")
+    XCTAssertEqual(field.value as? String, "zzz")
     app.typeKey(.escape, modifierFlags: [])
+    assertNotExists(field)
     assertExists(app.staticTexts[copy1])
     // The first ⎋ only ended the rename.
     app.typeKey(.escape, modifierFlags: [])

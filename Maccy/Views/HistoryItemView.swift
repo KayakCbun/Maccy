@@ -92,20 +92,18 @@ struct HistoryItemView: View {
         TextField(NSLocalizedString("rename_placeholder", comment: ""), text: $item.editingText)
           .textFieldStyle(.plain)
           .lineLimit(1)
+          .accessibilityIdentifier("edit-field")
           .focused($editFocused)
-          .onAppear {
-            editFocused = true
-          }
+          .onAppear(perform: focus)
           .onSubmit(save)
           .onExitCommand(perform: cancel)
       } else {
         TextField("", text: $item.editingText, axis: .vertical)
           .textFieldStyle(.plain)
           .lineLimit(1...5)
+          .accessibilityIdentifier("edit-field")
           .focused($editFocused)
-          .onAppear {
-            editFocused = true
-          }
+          .onAppear(perform: focus)
           .onSubmit(save)
           .onExitCommand(perform: cancel)
       }
@@ -128,6 +126,13 @@ struct HistoryItemView: View {
     .frame(maxWidth: .infinity, alignment: .leading)
     .background(Color.accentColor.opacity(0.15))
     .clipShape(.rect(cornerRadius: Popup.cornerRadius))
+  }
+
+  // Focus set in onAppear is lost, as the field isn't in the window yet.
+  private func focus() {
+    DispatchQueue.main.async {
+      editFocused = true
+    }
   }
 
   private func save() {

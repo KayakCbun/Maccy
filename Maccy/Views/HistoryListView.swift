@@ -77,10 +77,9 @@ struct HistoryListView: View {
             appState.history.items.filter(\.isRenaming).forEach { appState.history.saveRenaming($0) }
           }
         }
+        // Hand the keyboard to the field an item is edited or renamed in, and take it back after.
         .onChange(of: appState.history.isEditingItem) {
-          if !appState.history.isEditingItem {
-            searchFocused = true
-          }
+          searchFocused = !appState.history.isEditingItem
         }
         // Calculate the total height inside a scroll view.
         .background {
