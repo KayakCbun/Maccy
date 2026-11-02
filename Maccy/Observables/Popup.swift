@@ -36,6 +36,9 @@ class Popup {
     22
   }
 
+  /// Enough for the editor that covers the list when there are only a few items.
+  static let editorHeight: CGFloat = 260
+
   var needsResize = false
   var height: CGFloat = 0
   var headerHeight: CGFloat = 0
@@ -91,6 +94,12 @@ class Popup {
     self.height = height + headerHeight + pinnedItemsHeight + footerHeight + (Popup.verticalPadding * 2)
     AppState.shared.appDelegate?.panel.verticallyResize(to: self.height)
     needsResize = false
+  }
+
+  func ensureHeight(_ minimumHeight: CGFloat) {
+    guard let panel = AppState.shared.appDelegate?.panel, panel.frame.height < minimumHeight else { return }
+
+    panel.verticallyResize(to: minimumHeight)
   }
 
   private func handleFirstKeyDown() {

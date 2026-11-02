@@ -73,7 +73,8 @@ jobs:
         run: |
           tests=(testSearch testCopyWithEnter testCopyWithCommandShortcut testClear testCopyImage
                  testArchivedItemSurvivesClear testRenameFromContextMenu testRenameAndSearchByNameOrContent
-                 testEscapeCancelsRename testCopyAnimatedGIF)
+                 testEscapeCancelsRename testCopyAnimatedGIF testEditFromContextMenu testEditWhilePreviewIsShown
+                 testCancelledEditLeavesKeysWorking testAddNewItem)
           .github/scripts/test.sh uitest.log \
             -project Maccy.xcodeproj -scheme Maccy -testPlan Maccy \
             -destination 'platform=macOS' -derivedDataPath build-tests \

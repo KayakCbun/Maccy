@@ -341,53 +341,17 @@ class History { // swiftlint:disable:this type_body_length
     }
   }
 
+  /// Opens the editor over the list with the item's text.
   @MainActor
   func startEditing(_ item: HistoryItemDecorator?) {
-    guard let item, item.item.text != nil else { return }
-    item.editingText = item.item.text ?? item.title
-    item.isEditing = true
+    guard let item, let text = item.item.text else { return }
+    openEditor(item, .content, text: text)
   }
 
   @MainActor
-  func saveEditing(_ item: HistoryItemDecorator?) {
-    guard let item, item.isEditing else { return }
-    item.isEditing = false
+  func addNew() {
+    guard !isEditingItem else { return }
 
-    let newText = item.editingText
-    guard !newText.isEmpty else {
-      delete(item)
-      return
-    }
-
-    // Update the string content
-    if let content = item.item.contents.first(where: { $0.type == NSPasteboard.PasteboardType.string.rawValue }) {
-      content.value = newText.data(using: .utf8)
-    } else {
-      let content = HistoryItemContent(type: NSPasteboard.PasteboardType.string.rawValue, value: newText.data(using: .utf8))
-      item.item.contents.append(content)
-    }
-
-    item.item.title = item.item.generateTitle()
-    item.title = item.item.displayTitle
-
-    Storage.shared.context.processPendingChanges()
-    try? Storage.shared.context.save()
-  }
-
-  @MainActor
-  func cancelEditing(_ item: HistoryItemDecorator?) {
-    guard let item, item.isEditing else { return }
-    item.isEditing = false
-    item.editingText = ""
-    // If the item has no title (newly created), delete it
-    if item.item.title.isEmpty && (item.item.text ?? "").isEmpty {
-      delete(item)
-    }
-  }
-
-  @discardableResult
-  @MainActor
-  func addNew() -> HistoryItemDecorator {
     let content = HistoryItemContent(
       type: NSPasteboard.PasteboardType.string.rawValue,
       value: "".data(using: .utf8)
@@ -401,11 +365,8 @@ class History { // swiftlint:disable:this type_body_length
     }
 
     let decorator = add(historyItem)
-    decorator.editingText = ""
-    decorator.isEditing = true
-
     AppState.shared.selection = decorator.id
-    return decorator
+    openEditor(decorator, .newItem, text: "")
   }
 
   @MainActor
@@ -440,24 +401,85 @@ class History { // swiftlint:disable:this type_body_length
     try? Storage.shared.context.save()
   }
 
-  var isEditingItem: Bool { items.contains { $0.isEditing || $0.isRenaming } }
+  /// The item open in the editor that covers the list. One item at a time, and the editor
+  /// is the only way out of it, so nothing can be left half edited.
+  var editedItem: HistoryItemDecorator?
+  var edit: ItemEdit = .content
+  var editingText = ""
+  var isEditingItem: Bool { editedItem != nil }
 
   @MainActor
   func startRenaming(_ item: HistoryItemDecorator?) {
-    guard let item, !isEditingItem else { return }
-    item.editingText = item.item.customTitle ?? ""
-    item.isRenaming = true
+    guard let item else { return }
+    openEditor(item, .name, text: item.item.customTitle ?? "")
+  }
+
+  @MainActor
+  private func openEditor(_ item: HistoryItemDecorator, _ edit: ItemEdit, text: String) {
+    guard !isEditingItem else { return }
+
+    // A preview would cover the editor.
+    HistoryItemDecorator.previewThrottler.cancel()
+    item.showPreview = false
+    selectedItem?.showPreview = false
+
+    editingText = text
+    self.edit = edit
+    editedItem = item
+  }
+
+  @MainActor
+  func saveEdit() {
+    guard let item = editedItem else { return }
+    editedItem = nil
+
+    switch edit {
+    case .content, .newItem:
+      saveContent(item, editingText)
+    case .name:
+      saveName(item, editingText)
+    }
+    editingText = ""
+  }
+
+  @MainActor
+  func cancelEdit() {
+    guard let item = editedItem else { return }
+    editedItem = nil
+    editingText = ""
+
+    if edit == .newItem {
+      delete(item)
+    }
+  }
+
+  /// Empty text deletes the item.
+  @MainActor
+  private func saveContent(_ item: HistoryItemDecorator, _ text: String) {
+    guard !text.isEmpty else {
+      delete(item)
+      return
+    }
+
+    if let content = item.item.contents.first(where: { $0.type == NSPasteboard.PasteboardType.string.rawValue }) {
+      content.value = text.data(using: .utf8)
+    } else {
+      let content = HistoryItemContent(type: NSPasteboard.PasteboardType.string.rawValue, value: text.data(using: .utf8))
+      item.item.contents.append(content)
+    }
+
+    item.item.title = item.item.generateTitle()
+    item.title = item.item.displayTitle
+
+    Storage.shared.context.processPendingChanges()
+    try? Storage.shared.context.save()
   }
 
   /// Naming an item also archives it, as a name is for finding it again later.
   /// An empty name brings back the title made from the content.
   @MainActor
-  func saveRenaming(_ item: HistoryItemDecorator?) {
-    // The alert may already have reset isRenaming when its button runs this.
-    guard let item else { return }
-    item.isRenaming = false
-
-    let name = item.editingText
+  private func saveName(_ item: HistoryItemDecorator, _ text: String) {
+    let name = text
       .removingScalarsUnsafeForTitleLayout()
       .trimmingCharacters(in: .whitespacesAndNewlines)
     item.item.customTitle = name.isEmpty ? nil : name
@@ -469,13 +491,6 @@ class History { // swiftlint:disable:this type_body_length
 
     Storage.shared.context.processPendingChanges()
     try? Storage.shared.context.save()
-  }
-
-  @MainActor
-  func cancelRenaming(_ item: HistoryItemDecorator?) {
-    guard let item else { return }
-    item.isRenaming = false
-    item.editingText = ""
   }
 
   @MainActor
@@ -540,4 +555,12 @@ class History { // swiftlint:disable:this type_body_length
       index += 1
     }
   }
+}
+
+/// What the editor over the list changes.
+enum ItemEdit {
+  case content
+  /// The content of an item made with the + button. Cancelling removes the item.
+  case newItem
+  case name
 }

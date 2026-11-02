@@ -25,7 +25,7 @@ struct KeyHandlingView<Content: View>: View {
           }
         }
 
-        // Leave ↩, ⎋ and the arrows to the field an item is being edited or renamed in.
+        // Leave ↩, ⎋ and the arrows to the editor.
         if appState.history.isEditingItem {
           return .ignored
         }

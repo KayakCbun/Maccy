@@ -42,3 +42,5 @@
 "rename_save" = "Save";
 "rename_cancel" = "Cancel";
 "rename_message" = "Search finds the item by its name and its content. Named items are archived. Leave the name empty to show the content again.";
+"edit_title" = "Edit";
+"edit_message" = "Return saves, Option-Return starts a new line, Escape cancels.";

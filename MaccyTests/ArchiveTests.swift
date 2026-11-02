@@ -77,8 +77,8 @@ class ArchiveTests: XCTestCase {
   func testRenamingArchivesAndKeepsTheContentSearchable() {
     let item = history.add(historyItem("ssh deploy@10.0.0.1"))
     history.startRenaming(item)
-    item.editingText = "  staging server  "
-    history.saveRenaming(item)
+    history.editingText = "  staging server  "
+    history.saveEdit()
 
     XCTAssertTrue(item.isArchived)
     XCTAssertEqual(item.title, "staging server")
@@ -92,12 +92,12 @@ class ArchiveTests: XCTestCase {
   func testEmptyNameBringsBackTheTitle() {
     let item = history.add(historyItem("foo"))
     history.startRenaming(item)
-    item.editingText = "bar"
-    history.saveRenaming(item)
+    history.editingText = "bar"
+    history.saveEdit()
     history.startRenaming(item)
-    XCTAssertEqual(item.editingText, "bar")
-    item.editingText = " "
-    history.saveRenaming(item)
+    XCTAssertEqual(history.editingText, "bar")
+    history.editingText = " "
+    history.saveEdit()
 
     XCTAssertEqual(item.title, "foo")
     XCTAssertNil(item.item.customTitle)
@@ -108,8 +108,8 @@ class ArchiveTests: XCTestCase {
   func testNameDropsObjectReplacementCharacters() {
     let item = history.add(historyItem("foo"))
     history.startRenaming(item)
-    item.editingText = "\u{FFFC}服务器\u{FFFC}地址"
-    history.saveRenaming(item)
+    history.editingText = "\u{FFFC}服务器\u{FFFC}地址"
+    history.saveEdit()
 
     XCTAssertEqual(item.item.customTitle, "服务器地址")
   }
@@ -117,10 +117,10 @@ class ArchiveTests: XCTestCase {
   func testCancellingRenameKeepsTheTitle() {
     let item = history.add(historyItem("foo"))
     history.startRenaming(item)
-    item.editingText = "bar"
-    history.cancelRenaming(item)
+    history.editingText = "bar"
+    history.cancelEdit()
 
-    XCTAssertFalse(item.isRenaming)
+    XCTAssertNil(history.editedItem)
     XCTAssertEqual(item.title, "foo")
     XCTAssertFalse(item.isArchived)
   }
@@ -128,8 +128,8 @@ class ArchiveTests: XCTestCase {
   func testCopyingAgainKeepsArchiveAndName() {
     let first = history.add(historyItem("foo"))
     history.startRenaming(first)
-    first.editingText = "bar"
-    history.saveRenaming(first)
+    history.editingText = "bar"
+    history.saveEdit()
 
     let second = history.add(historyItem("foo"))
 
@@ -152,6 +152,7 @@ class ArchiveTests: XCTestCase {
   }
 
   private func removeEverything() {
+    history.cancelEdit()
     history.clearAll()
     history.all.forEach(history.delete)
   }

@@ -5,17 +5,8 @@ struct HistoryItemView: View {
   @Bindable var item: HistoryItemDecorator
 
   @Environment(AppState.self) private var appState
-  @FocusState private var editFocused: Bool
 
   var body: some View {
-    if item.isEditing {
-      editingView
-    } else {
-      normalView
-    }
-  }
-
-  private var normalView: some View {
     ListItemView(
       id: item.id,
       appIcon: item.applicationImage,
@@ -83,60 +74,5 @@ struct HistoryItemView: View {
         Text("delete")
       }
     }
-    // An alert rather than a field in the row: in UI tests the row never turned into a field.
-    .alert(Text("rename_title"), isPresented: $item.isRenaming) {
-      TextField(NSLocalizedString("rename_placeholder", comment: ""), text: $item.editingText)
-        .accessibilityIdentifier("edit-field")
-      Button("rename_save") {
-        appState.history.saveRenaming(item)
-      }
-      .keyboardShortcut(.defaultAction)
-      Button("rename_cancel", role: .cancel) {
-        appState.history.cancelRenaming(item)
-      }
-    } message: {
-      Text("rename_message")
-    }
-  }
-
-  private var editingView: some View {
-    HStack(spacing: 0) {
-      Spacer().frame(width: 10)
-      TextField("", text: $item.editingText, axis: .vertical)
-        .textFieldStyle(.plain)
-        .lineLimit(1...5)
-        .focused($editFocused)
-        .onAppear {
-          editFocused = true
-        }
-        .onSubmit {
-          appState.history.saveEditing(item)
-        }
-        .onExitCommand {
-          appState.history.cancelEditing(item)
-        }
-      Spacer().frame(width: 4)
-      Button {
-        appState.history.saveEditing(item)
-      } label: {
-        Image(systemName: "checkmark.circle.fill")
-          .foregroundStyle(.green)
-      }
-      .buttonStyle(.plain)
-      .padding(.trailing, 4)
-      Button {
-        appState.history.cancelEditing(item)
-      } label: {
-        Image(systemName: "xmark.circle.fill")
-          .foregroundStyle(.secondary)
-      }
-      .buttonStyle(.plain)
-      .padding(.trailing, 8)
-    }
-    .frame(minHeight: Popup.itemHeight)
-    .id(item.id)
-    .frame(maxWidth: .infinity, alignment: .leading)
-    .background(Color.accentColor.opacity(0.15))
-    .clipShape(.rect(cornerRadius: Popup.cornerRadius))
   }
 }
