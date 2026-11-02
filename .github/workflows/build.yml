@@ -78,8 +78,16 @@ jobs:
           .github/scripts/test.sh uitest.log \
             -project Maccy.xcodeproj -scheme Maccy -testPlan Maccy \
             -destination 'platform=macOS' -derivedDataPath build-tests \
+            -resultBundlePath uitest.xcresult \
             "${tests[@]/#/-only-testing:MaccyUITests/MaccyUITests/}" \
             $TIMEOUTS $SIGNING
+
+      # Screenshots XCTest takes when a UI test fails.
+      - name: Export screenshots
+        if: failure()
+        run: |
+          xcrun xcresulttool export attachments --path uitest.xcresult --output-path screenshots || true
+          rm -f screenshots/*.mp4
 
       - name: Upload test logs
         if: failure()
@@ -90,6 +98,7 @@ jobs:
             test.log
             uitest.log
             sample-*.txt
+            screenshots
           retention-days: 7
 
   # Builds the app signed with the fork's own certificate, so macOS keeps its permissions across

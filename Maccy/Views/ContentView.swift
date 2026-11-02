@@ -52,12 +52,12 @@ struct ContentView: View {
         ItemEditorView()
       }
     }
-    // Hand the keyboard to the editor, and take it back after.
+    // The editor takes the keyboard itself; search gets it back after.
     .onChange(of: appState.history.isEditingItem) {
-      searchFocused = !appState.history.isEditingItem
       if appState.history.isEditingItem {
         appState.popup.ensureHeight(Popup.editorHeight)
       } else {
+        searchFocused = true
         appState.popup.needsResize = true
       }
     }

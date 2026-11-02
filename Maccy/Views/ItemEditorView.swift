@@ -50,8 +50,12 @@ struct ItemEditorView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     .background(Color(nsColor: .windowBackgroundColor))
     .clipShape(.rect(cornerRadius: Popup.cornerRadius + Popup.horizontalPadding))
+    .defaultFocus($focused, true)
     .onAppear {
-      focused = true
+      // Focus asked for while the editor is still being added to the window doesn't stick.
+      DispatchQueue.main.async {
+        focused = true
+      }
     }
     .onExitCommand {
       history.cancelEdit()
