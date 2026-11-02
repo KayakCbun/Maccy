@@ -25,9 +25,12 @@ struct KeyHandlingView<Content: View>: View {
           }
         }
 
-        // Leave ↩, ⎋ and the arrows to the field an item is being edited or renamed in.
+        // Leave the keys to the editor. Should search still have them, ⎋ at least closes the editor.
         if appState.history.isEditingItem {
-          return .ignored
+          guard KeyChord(NSApp.currentEvent) == .close else { return .ignored }
+
+          appState.history.cancelEdit()
+          return .handled
         }
 
         switch KeyChord(NSApp.currentEvent) {

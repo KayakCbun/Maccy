@@ -21,6 +21,9 @@ class AppState: Sendable {
   }
 
   func selectWithoutScrolling(_ item: UUID?) {
+    // Rows under the editor still report hover, and their previews would cover it.
+    guard !history.isEditingItem else { return }
+
     let historyItem = history.items.first { $0.id == item }
     let footerItem = historyItem == nil ? footer.items.first { $0.id == item } : nil
 

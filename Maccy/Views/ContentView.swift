@@ -47,6 +47,19 @@ struct ContentView: View {
       .task {
         try? await appState.history.load()
       }
+
+      if appState.history.isEditingItem {
+        ItemEditorView()
+      }
+    }
+    // The editor takes the keyboard itself; search gets it back after.
+    .onChange(of: appState.history.isEditingItem) {
+      if appState.history.isEditingItem {
+        appState.popup.ensureHeight(Popup.editorHeight)
+      } else {
+        searchFocused = true
+        appState.popup.needsResize = true
+      }
     }
     .environment(appState)
     .environment(modifierFlags)

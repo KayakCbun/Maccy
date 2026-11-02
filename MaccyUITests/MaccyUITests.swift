@@ -45,6 +45,10 @@ class MaccyUITests: XCTestCase {
     app.textFields.matching(NSPredicate(format: "identifier == 'edit-field' OR placeholderValue == 'Name'")).firstMatch
   }
 
+  var editField: XCUIElement {
+    app.descendants(matching: .any).matching(identifier: "edit-content-field").firstMatch
+  }
+
   var itemTitles: [String] {
     items.allElementsBoundByIndex
       .sorted(by: { $0.frame.origin.y < $1.frame.origin.y })
@@ -306,6 +310,63 @@ class MaccyUITests: XCTestCase {
     // The first ⎋ only ended the rename.
     app.typeKey(.escape, modifierFlags: [])
     assertPopupDismissed()
+  }
+
+  func testEditFromContextMenu() {
+    popUpWithMouse()
+    items[copy1].firstMatch.rightClick()
+    app.menuItems["Edit"].click()
+    let field = editField
+    assertExists(field)
+    XCTAssertEqual(field.value as? String, copy1)
+    typeKeys("-edited")
+    let edited = field.value as? String ?? ""
+    XCTAssertTrue(edited.hasSuffix("-edited"), edited)
+    app.typeKey(.return, modifierFlags: [])
+    assertNotExists(field)
+    assertExists(items[edited])
+    assertNotExists(items[copy1])
+  }
+
+  func testEditWhilePreviewIsShown() {
+    popUpWithMouse()
+    hover(items[copy1].firstMatch)
+    // The preview shows up after 1.5 seconds.
+    sleep(3)
+    items[copy1].firstMatch.rightClick()
+    app.menuItems["Edit"].click()
+    assertExists(editField)
+    app.typeKey(.escape, modifierFlags: [])
+    assertNotExists(editField)
+    assertExists(items[copy1])
+  }
+
+  // Editing used to stay on when its field never showed up, leaving every key ignored.
+  func testCancelledEditLeavesKeysWorking() {
+    popUpWithMouse()
+    hover(items[copy1].firstMatch)
+    app.typeKey("e", modifierFlags: [.command])
+    assertExists(editField)
+    app.typeKey(.escape, modifierFlags: [])
+    assertNotExists(editField)
+    app.typeKey("r", modifierFlags: [.command])
+    assertExists(renameField)
+    app.typeKey(.escape, modifierFlags: [])
+    assertNotExists(renameField)
+    app.typeKey(.return, modifierFlags: [])
+    assertPopupDismissed()
+    assertPasteboardStringEquals(copy1)
+  }
+
+  func testAddNewItem() {
+    popUpWithMouse()
+    app.buttons["plus"].click()
+    let field = editField
+    assertExists(field)
+    typeKeys("note")
+    app.typeKey(.return, modifierFlags: [])
+    assertNotExists(field)
+    assertExists(items["note"])
   }
 
   func testCopyAnimatedGIF() {
